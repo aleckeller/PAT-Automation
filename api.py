@@ -23,6 +23,7 @@ def getIncidents(self):
         'until': now,
         'time_zone': constants.TIME_ZONE,
         'limit': constants.LIMIT,
+        'sort_by': ["created_at"],
         'offset': self.offset
     }
 
@@ -51,16 +52,38 @@ def parseIncidentsJson(self, json):
 def createIncidentObject(self,incident,check_name):
     created_at = parser.parse(incident['created_at'])
     created_at_string = created_at.strftime('%I:%M %p')
+    twentyfour_created = created_at.strftime('%H:%M %p')
     #if the incident has been resolved, record end time
     if incident['status'] == 'resolved':
         resolved_time = parser.parse(incident['last_status_change_at'])
         resolved_time_string = resolved_time.strftime('%I:%M %p')
+        twentyfour_resolved = resolved_time.strftime('%H:%M %p')
         tdelta = resolved_time - created_at
         # if the incident lasted longer than two minutes, record info
         if tdelta.seconds >= 120:
-            incident_obj = ResolvedIncident(check_name,created_at_string,resolved_time_string)
+            incident_obj = ResolvedIncident(check_name,created_at_string,resolved_time_string,incident['id'],twentyfour_created,twentyfour_resolved)
             self.resolved_incidents_array.append(incident_obj)
     else:
         # Get incident number and write to PAT
-        incident_obj = OpenIncident(incident['id'],check_name,created_at_string)
+        incident_obj = OpenIncident(incident['id'],check_name,created_at_string,twentyfour_created)
         self.open_incidents_array.append(incident_obj)
+
+def checkOverlap(self):
+    list = self.resolved_incidents_array
+    indexs_to_remove = []
+    objects_to_add = []
+    for i in range(0,len(list)):
+        for x in range(i + 1,len(list)):
+            if x == len(list):
+                x -= 1
+            if list[i].title == list[x].title:
+                if list[i].twentyfour_resolved > list[x].twentyfour_created:
+                    #max_resolved_object = null
+                    if list[i].twentyfour_resolved > list[x].twentyfour_resolved:
+                        max_resolved_object = list[i]
+                    else:
+                        max_resolved_object = list[x]
+                    incident_obj = ResolvedIncident(list[i].title,list[i].created_at,max_resolved_object.resolved_time,"overlap",list[i].twentyfour_created,max_resolved_object.twentyfour_resolved)
+                    list[i] = incident_obj
+                    list.remove(list[x])
+    self.resolved_incidents_array = list
