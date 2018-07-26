@@ -70,12 +70,10 @@ def createIncidentObject(self,incident,check_name):
 
 def checkOverlap(self):
     list = self.resolved_incidents_array
-    indexs_to_remove = []
-    objects_to_add = []
-    for i in range(0,len(list)):
-        for x in range(i + 1,len(list)):
-            if x == len(list):
-                x -= 1
+    i = 0
+    while i < len(list):
+        x = i + 1
+        while x < len(list):
             if list[i].title == list[x].title:
                 if list[i].twentyfour_resolved > list[x].twentyfour_created:
                     #max_resolved_object = null
@@ -86,4 +84,9 @@ def checkOverlap(self):
                     incident_obj = ResolvedIncident(list[i].title,list[i].created_at,max_resolved_object.resolved_time,"overlap",list[i].twentyfour_created,max_resolved_object.twentyfour_resolved)
                     list[i] = incident_obj
                     list.remove(list[x])
+                else:
+                    x += 1
+            else:
+                x += 1
+        i += 1
     self.resolved_incidents_array = list
