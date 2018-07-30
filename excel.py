@@ -4,12 +4,14 @@ from dateutil import parser
 from datetime import *
 import pytz
 import constants
+import api
 
 def loadWorkbook(self):
     print "loading workbook..."
     wb = load_workbook('./pat.xlsx')
     sheet_names = wb.get_sheet_names()
     now = datetime.now(pytz.timezone(constants.TIME_ZONE))
+    yesterday = now - timedelta(1)
     today_date_sheet_exists = False
     # Go through all of sheet names, set flag to true if one of the sheet names is today's month and year
     for name in sheet_names:
@@ -20,6 +22,7 @@ def loadWorkbook(self):
     active_sheet = ""
     today_sheet_name = str(now.strftime('%Y')) + "-" + str(now.strftime('%m'))
     self.today_date = str(now.strftime('%-m')) + "/" + str(now.strftime('%-d')) + "/" + str(now.strftime('%y'))
+    self.yesterday = str(yesterday.strftime('%-m')) + "/" + str(yesterday.strftime('%-d')) + "/" + str(yesterday.strftime('%y'))
     if (today_date_sheet_exists):
         print "editing existing sheet.."
         active_sheet = wb.get_sheet_by_name(today_sheet_name)
@@ -48,15 +51,18 @@ def loadWorkbook(self):
             tmp_row += 14
         print "finished creating new sheet"
 
-    writeResolvedIncidentsToExcel(self,wb,active_sheet)
+    #writeResolvedIncidentsToExcel(self,wb,active_sheet)
+    scanForOpenIncidents(self,wb,active_sheet)
+    writeIncidentsToExcel(self,wb,active_sheet,self.resolved_incidents_array)
+    writeIncidentsToExcel(self,wb,active_sheet,self.open_incidents_array)
     saveWorkbook(self,wb)
 
-def writeResolvedIncidentsToExcel(self,wb,active_sheet):
+def writeIncidentsToExcel(self,wb,active_sheet,incidents_array):
     wb.active = wb.index(active_sheet)
     tmp_col = constants.init_http_check_col
     while tmp_col <= constants.last_index_col:
         check_name = active_sheet.cell(row=constants.http_check_row,column=tmp_col).value
-        for incident in self.resolved_incidents_array:
+        for incident in incidents_array:
             titleExists = False
             if incident.title == "check-api-umbrella-status-non-prod" or incident.title == "check_docker dtr-":
                 if check_name in incident.title:
@@ -71,17 +77,67 @@ def writeResolvedIncidentsToExcel(self,wb,active_sheet):
                         row_increment = 1
                         while row_increment <= 11:
                             if not active_sheet.cell(row=tmp_row + row_increment,column=tmp_col + 1).value and not active_sheet.cell(row=tmp_row + row_increment,column=tmp_col + 2).value:
-                                print "writing " + incident.title + " incident.."
-                                # Write start time
-                                active_sheet.cell(row=tmp_row + row_increment,column=tmp_col + 1).value = incident.created_at
-                                # Write end time
-                                active_sheet.cell(row=tmp_row + row_increment,column=tmp_col + 2).value = incident.resolved_time
-                                break
+                                # RESOLVED INCIDENTS
+                                if incidents_array is self.resolved_incidents_array:
+                                    print "writing resolved " + incident.title + " incident.."
+                                    # Write start time
+                                    active_sheet.cell(row=tmp_row + row_increment,column=tmp_col + 1).value = incident.created_at
+                                    # Write end time
+                                    active_sheet.cell(row=tmp_row + row_increment,column=tmp_col + 2).value = incident.resolved_time
+                                    break
+                                # OPEN INCIDENTS
+                                else:
+                                    print "writing open " + incident.title + " incident.."
+                                    # Write start time
+                                    active_sheet.cell(row=tmp_row + row_increment,column=tmp_col + 1).value = incident.created_at
+                                    # Write end time
+                                    active_sheet.cell(row=tmp_row + row_increment,column=tmp_col + 2).value = "*"
+                                    # Write incident ID
+                                    active_sheet.cell(row=tmp_row + row_increment,column=tmp_col + 5).value = incident.id
+                                    break
                             row_increment += 1
+                    if incidents_array is self.resolved_incidents_array:
+                        if not active_sheet.cell(row=tmp_row + 2,column=tmp_col + 1).value:
+                            active_sheet.cell(row=tmp_row + 2,column=tmp_col + 4).value = "No Outage"
+                tmp_row += 14
+        # write no outage if there were no incidents
+        if not self.resolved_incidents_array and incidents_array is self.resolved_incidents_array:
+            tmp_row = constants.init_dates_row
+            while tmp_row <= constants.last_index_row:
+                date = active_sheet.cell(row=tmp_row,column=constants.dates_col).value
+                if date == self.today_date:
                     if not active_sheet.cell(row=tmp_row + 2,column=tmp_col + 1).value:
                         active_sheet.cell(row=tmp_row + 2,column=tmp_col + 4).value = "No Outage"
                 tmp_row += 14
         tmp_col += 7
+
+def scanForOpenIncidents(self,wb,active_sheet):
+    tmp_col = constants.init_outage_end_time
+    while tmp_col <= constants.last_index_col:
+        tmp_row = constants.init_dates_row
+        while tmp_row <= constants.last_index_row:
+            date = active_sheet.cell(row=tmp_row,column=constants.dates_col).value
+            if date == self.yesterday:
+                row_increment = 2
+                while row_increment <= 11:
+                    if active_sheet.cell(row=tmp_row + row_increment,column=tmp_col).value == "*":
+                        #change star to 11:59 pm
+                        active_sheet.cell(row=tmp_row + row_increment,column=tmp_col).value ="11:59 PM"
+                        #go to today, write 12:01 AM on created at
+                        active_sheet.cell(row=tmp_row + 16,column=tmp_col - 1).value = "12:01 AM"
+                        #use incident id to find resolved time
+                        incident_id = active_sheet.cell(row=tmp_row + row_increment,column=tmp_col + 3).value
+                        incident_json = api.getIncidents(self,incident_id)
+                        if incident_json['incident']['status'] == "resolved":
+                            resolved_time = parser.parse(incident_json['incident']['last_status_change_at'])
+                            resolved_time_string = resolved_time.strftime('%I:%M %p')
+                            active_sheet.cell(row=tmp_row + 16,column=tmp_col).value = resolved_time_string
+                        else:
+                            active_sheet.cell(row=tmp_row + 16,column=tmp_col).value = "*"
+                    row_increment += 1
+            tmp_row += 14
+        tmp_col += 7
+
 
 def saveWorkbook(self,wb):
     print "saving workbook.."
