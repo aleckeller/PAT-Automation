@@ -10,25 +10,35 @@ import sys
 
 API_KEY = sys.argv[1]
 
-def getIncidents(self):
+def getIncidents(self,incident_id=""):
     now = (datetime.now(pytz.timezone(constants.TIME_ZONE)))
     startOfDay = datetime(now.year, now.month, now.day, tzinfo=now.tzinfo)
-    url = 'https://api.pagerduty.com/incidents'
     headers = {
         'Accept': 'application/vnd.pagerduty+json;version=2',
         'Authorization': 'Token token={token}'.format(token=API_KEY)
     }
-    payload = {
-        'since': startOfDay,
-        'until': now,
-        'time_zone': constants.TIME_ZONE,
-        'limit': constants.LIMIT,
-        'sort_by': ["created_at"],
-        'offset': self.offset
-    }
 
-    request = requests.get(url, headers=headers, params=payload)
-    parseIncidentsJson(self,request.json())
+    if incident_id != "":
+        url = 'https://api.pagerduty.com/incidents/{id}'.format(id=incident_id)
+        payload = {
+            'time_zone': constants.TIME_ZONE,
+        }
+        request = requests.get(url, headers=headers, params=payload)
+        return request.json()
+
+    else:
+        url = 'https://api.pagerduty.com/incidents'
+        #"2018-07-25 23:57:46.651475-04:00"
+        payload = {
+            'since': startOfDay,
+            'until': now,
+            'time_zone': constants.TIME_ZONE,
+            'limit': constants.LIMIT,
+            'sort_by': ["created_at"],
+            'offset': self.offset
+        }
+        request = requests.get(url, headers=headers, params=payload)
+        parseIncidentsJson(self,request.json())
 
 def parseIncidentsJson(self, json):
     incidents = json['incidents']
@@ -39,7 +49,7 @@ def parseIncidentsJson(self, json):
             split_array = "check" + incident_title.split("check",1)[1]
             check_name = split_array.split(" ")[0].strip()
             for check in constants.HTTPCHECKS:
-                if check == "check-api-umbrella-status-non-prod" or check == "check_docker dtr-":
+                if check == "check-api-umbrella-status-non-prod" or check == "check_docker dtr-" or check == "check_http_alpha.sam.gov" or check == "check_http_beta.sam.gov":
                     if check in check_name:
                         createIncidentObject(self,incident,check_name)
                 else:
