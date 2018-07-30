@@ -28,38 +28,39 @@ class Main:
 
         # Need to sort again based on 24 hour time because of the new incident that was added
         self.resolved_incidents_array.sort(key=lambda x: x.twentyfour_created)
+        self.open_incidents_array.sort(key=lambda x: x.twentyfour_time)
 
         now = datetime.now(pytz.timezone(constants.TIME_ZONE))
         formatted_date = str(now.strftime('%m')) + "-" + str(now.strftime('%d')) + "-" + str(now.strftime('%Y'))
 
         #***************************** FILE WRITING *******************************
-        # file = open(formatted_date + ".txt","w")
-        # outages = False
-        # if len(self.resolved_incidents_array) > 0:
-        #     outages = True
-        #     index = 1
-        #     file.write("RESOLVED INCIDENTS:\n")
-        #     for incident in self.resolved_incidents_array:
-        #         file.write("    #" + str(index) +  ")  Title: " + str(incident.title) + "\n")
-        #         file.write("         Created At: " + str(incident.created_at) + "\n")
-        #         file.write("         Resolved At: " + str(incident.resolved_time) + "\n")
-        #         file.write("         ID: " + str(incident.id) + "\n")
-        #         file.write("____________________________\n")
-        #         index+=1
-        # if len(self.open_incidents_array) > 0:
-        #     outages = True
-        #     index = 1
-        #     file.write("STILL OPEN INCIDENTS:")
-        #     for incident in self.open_incidents_array:
-        #         file.write("    #" + str(index) +  ")  Title: " + str(incident.title) + "\n")
-        #         file.write("         Created At: " + str(incident.created_at) + "\n")
-        #         file.write("         ID: " + str(incident.id) + "\n")
-        #         file.write("____________________________\n")
-        #         index+=1
-        # if not outages:
-        #     file.write("There were no outages on " + formatted_date)
-        #
-        # file.close()
+        file = open(formatted_date + ".txt","w")
+        outages = False
+        if len(self.resolved_incidents_array) > 0:
+            outages = True
+            index = 1
+            file.write("RESOLVED INCIDENTS:\n")
+            for incident in self.resolved_incidents_array:
+                file.write("    #" + str(index) +  ")  Title: " + str(incident.title) + "\n")
+                file.write("         Created At: " + str(incident.created_at) + "\n")
+                file.write("         Resolved At: " + str(incident.resolved_time) + "\n")
+                file.write("         ID: " + str(incident.id) + "\n")
+                file.write("____________________________\n")
+                index+=1
+        if len(self.open_incidents_array) > 0:
+            outages = True
+            index = 1
+            file.write("STILL OPEN INCIDENTS:")
+            for incident in self.open_incidents_array:
+                file.write("    #" + str(index) +  ")  Title: " + str(incident.title) + "\n")
+                file.write("         Created At: " + str(incident.created_at) + "\n")
+                file.write("         ID: " + str(incident.id) + "\n")
+                file.write("____________________________\n")
+                index+=1
+        if not outages:
+            file.write("There were no outages on " + formatted_date)
+
+        file.close()
         #***************************** END FILE WRITING *******************************
 
         excel.loadWorkbook(self)
