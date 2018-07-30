@@ -6,12 +6,13 @@ import pytz
 import constants
 import api
 
+now = datetime.now(pytz.timezone(constants.TIME_ZONE))
+yesterday = now - timedelta(1)
+
 def loadWorkbook(self):
     print "loading workbook..."
     wb = load_workbook('./pat.xlsx')
     sheet_names = wb.get_sheet_names()
-    now = datetime.now(pytz.timezone(constants.TIME_ZONE))
-    yesterday = now - timedelta(1)
     today_date_sheet_exists = False
     # Go through all of sheet names, set flag to true if one of the sheet names is today's month and year
     for name in sheet_names:
@@ -112,6 +113,8 @@ def writeIncidentsToExcel(self,wb,active_sheet,incidents_array):
         tmp_col += 7
 
 def scanForOpenIncidents(self,wb,active_sheet):
+    if now.day == 1:
+        active_sheet = wb.get_sheet_by_name(str(yesterday.strftime('%Y')) + "-" + str(yesterday.strftime('%m')))
     tmp_col = constants.init_outage_end_time
     while tmp_col <= constants.last_index_col:
         tmp_row = constants.init_dates_row
@@ -121,19 +124,28 @@ def scanForOpenIncidents(self,wb,active_sheet):
                 row_increment = 2
                 while row_increment <= 11:
                     if active_sheet.cell(row=tmp_row + row_increment,column=tmp_col).value == "*":
-                        #change star to 11:59 pm
-                        active_sheet.cell(row=tmp_row + row_increment,column=tmp_col).value ="11:59 PM"
-                        #go to today, write 12:01 AM on created at
-                        active_sheet.cell(row=tmp_row + 16,column=tmp_col - 1).value = "12:01 AM"
                         #use incident id to find resolved time
                         incident_id = active_sheet.cell(row=tmp_row + row_increment,column=tmp_col + 3).value
                         incident_json = api.getIncidents(self,incident_id)
+                        resolved_time_string = ""
                         if incident_json['incident']['status'] == "resolved":
                             resolved_time = parser.parse(incident_json['incident']['last_status_change_at'])
                             resolved_time_string = resolved_time.strftime('%I:%M %p')
-                            active_sheet.cell(row=tmp_row + 16,column=tmp_col).value = resolved_time_string
                         else:
-                            active_sheet.cell(row=tmp_row + 16,column=tmp_col).value = "*"
+                            resolved_time_string = "*"
+
+                        #change star to 11:59 pm
+                        active_sheet.cell(row=tmp_row + row_increment,column=tmp_col).value ="11:59 PM"
+                        #go to today, write 12:01 AM on created at
+                        if now.day != 1:
+                            active_sheet.cell(row=tmp_row + 16,column=tmp_col - 1).value = "12:01 AM"
+                            active_sheet.cell(row=tmp_row + 16,column=tmp_col).value = resolved_time_string
+                        #if it's the first, need to change sheets and reset row
+                        else:
+                            active_sheet = wb.get_sheet_by_name(str(now.strftime('%Y')) + "-" + str(now.strftime('%m')))
+                            active_sheet.cell(row=constants.init_outage_type_row,column=tmp_col - 1).value = "12:01 AM"
+                            active_sheet.cell(row=constants.init_outage_type_row,column=tmp_col).value = resolved_time_string
+                            active_sheet = wb.get_sheet_by_name(str(yesterday.strftime('%Y')) + "-" + str(yesterday.strftime('%m')))
                     row_increment += 1
             tmp_row += 14
         tmp_col += 7
