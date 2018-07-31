@@ -97,12 +97,9 @@ def writeIncidentsToExcel(self,wb,active_sheet,incidents_array):
                                     active_sheet.cell(row=tmp_row + row_increment,column=tmp_col + 5).value = incident.id
                                     break
                             row_increment += 1
-                    if incidents_array is self.resolved_incidents_array:
-                        if not active_sheet.cell(row=tmp_row + 2,column=tmp_col + 1).value:
-                            active_sheet.cell(row=tmp_row + 2,column=tmp_col + 4).value = "No Outage"
                 tmp_row += 14
         # write no outage if there were no incidents
-        if not self.resolved_incidents_array and incidents_array is self.resolved_incidents_array:
+        if incidents_array is self.resolved_incidents_array:
             tmp_row = constants.init_dates_row
             while tmp_row <= constants.last_index_row:
                 date = active_sheet.cell(row=tmp_row,column=constants.dates_col).value
