@@ -19,3 +19,4 @@ last_index_row = 443
 time_increment_row = 2
 init_outage_type_col = 8
 init_outage_type_row = 13
+init_outage_end_time = 6
