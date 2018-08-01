@@ -16,10 +16,12 @@ def loadWorkbook(self):
     today_date_sheet_exists = False
     # Go through all of sheet names, set flag to true if one of the sheet names is today's month and year
     for name in sheet_names:
-        if (name != "template"):
+        try:
             sheet_date = parser.parse(str(name))
             if now.year == sheet_date.year and now.month == sheet_date.month:
                 today_date_sheet_exists = True
+        except:
+            print "skipping " + name + ".."
     active_sheet = ""
     today_sheet_name = str(now.strftime('%Y')) + "-" + str(now.strftime('%m'))
     self.today_date = str(now.strftime('%-m')) + "/" + str(now.strftime('%-d')) + "/" + str(now.strftime('%y'))
